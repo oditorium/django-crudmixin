@@ -4,8 +4,8 @@ CrudMixin - Mixing for Django models to implement CRUD functionality
 Copyright (c) Stefan LOESCH, oditorium 2016. All rights reserved.
 Licensed under the Mozilla Public License, v. 2.0 <https://mozilla.org/MPL/2.0/>
 """
-__version__="1.2"
-__version_dt__="2016-04-25"
+__version__="1.2.1"
+__version_dt__="2016-05-05"
 
 from django.http import JsonResponse
 from django.core.signing import Signer, BadSignature
@@ -38,6 +38,8 @@ class TokenDefinitionError(RuntimeError): pass      # bad parameters when defini
 class TokenPermissionError(RuntimeError): pass      # tried to access unpermissioned resource
 class ParamsError(RuntimeError): pass               # json decode of params failed
 class DoesNotExistError(RuntimeError): pass         # the item does not exist
+class WrongParametersError(RuntimeError): pass      # wrong/inconsistent parameters
+class UnknownFieldError(AttributeError): pass       # this field does not exits
 
 
 ##############################################################################################
@@ -173,7 +175,7 @@ class CrudMixin():
             
         """
         if inspect.isclass(s):
-            if id==None: raise RuntimeError("When called as a classmethod, the `id` field must not be None")
+            if id==None: raise WrongParametersError("When called as a classmethod, the `id` field must not be None")
             else: s = s.byid(id)
         if s == None: return None
         if isinstance(fields, dict): fields = fields.keys
@@ -194,12 +196,17 @@ class CrudMixin():
         """
         if inspect.isclass(s):
             # if called as a classmethod: new object on id=None, otherwise get object id 
-            if not 'id' in kwargs: raise RuntimeError("When called as a classmethod, the `id` field must be present")
+            if not 'id' in kwargs: raise WrongParametersError("When called as a classmethod, the `id` field must be present")
             if kwargs['id'] == None: s = s() # s is initially a class, then a fresh instance
             else: s = s.byid(kwargs['id'])
         for field in kwargs:
-            if hasattr(s, field): setattr(s, field, kwargs[field])
-            else: raise RuntimeError("unkwown attribute: {}".format(field))
+            #if hasattr(s, field): setattr(s, field, kwargs[field])
+            #else: raise RuntimeError("unkwown attribute: {}".format(field))
+                # note: this code FAILS for ForeignKey fields: hasattr() tries getattr() and checks
+                # if an exception is raised; empty ForeignKey fields raise RelatedObjectDoesNotExist
+                # and apparently hasattr considers this as the attribute not being present
+            try: setattr(s, field, kwargs[field])
+            except: raise UnknownFieldError("unkwown field: {}".format(field))
         if not do_not_save_object: s.save()
         return s
 
@@ -231,7 +238,7 @@ class CrudMixin():
         new.id = None
         for field in kwargs:
             if hasattr(new, field): setattr(new, field, kwargs[field])
-            else: raise RuntimeError("unkwown attribute: {}".format(field))
+            else: raise UnknownFieldError("unkwown field: {}".format(field))
         if not do_not_save_object: 
             new.save()
             print ("SAVING ({0.id})".format(new))
