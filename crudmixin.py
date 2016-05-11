@@ -4,8 +4,8 @@ CrudMixin - Mixing for Django models to implement CRUD functionality
 Copyright (c) Stefan LOESCH, oditorium 2016. All rights reserved.
 Licensed under the Mozilla Public License, v. 2.0 <https://mozilla.org/MPL/2.0/>
 """
-__version__="1.2.1"
-__version_dt__="2016-05-05"
+__version__="1.2.2"
+__version_dt__="2016-05-11"
 
 from django.http import JsonResponse
 from django.core.signing import Signer, BadSignature
@@ -154,7 +154,7 @@ class CrudMixin():
     ## CRUD READ
     def crud_read(s, fields, id=None):
         """
-        read multiple data fields of a model at once (returns as dict)
+        read multiple data fields of a model at once (returns dict)
         
         NOTES
         - the primary key field `id` is always added
@@ -241,7 +241,7 @@ class CrudMixin():
             else: raise UnknownFieldError("unkwown field: {}".format(field))
         if not do_not_save_object: 
             new.save()
-            print ("SAVING ({0.id})".format(new))
+            #print ("SAVING ({0.id})".format(new))
         return new
 
 
@@ -362,6 +362,7 @@ class CrudMixin():
         - token: the CRUD token, specifying permissions and command
         - params: the command parameters (dict for create, update, duplicate; 
             list for read; nothing for delete)
+
         """
         t = Token(token)
         if t.namespace != cls.__name__: 
@@ -435,6 +436,42 @@ class CrudMixin():
         - token: the CRUD token that (mostly) determines the request
         - params: the command parameters (dict for create, update, and duplicate tokens; 
             list for read token; nothing for delete token)
+
+        USAGE
+        In the `urls.py` file:
+
+            urlpatterns += [
+                url(r'^api/somemodel$', SomeModel.crud_as_view(), name="api_somemodel"),
+            ]
+
+        In the `models.py` file:
+
+            class SomeModel(CrudMixin, models.Model):
+                afield = models.BooleanField()
+                @property
+                def crud_token_update_afield(s):
+                    return s.crud_token_update(['paid'])
+                ...
+
+        In the `views.py` file:
+
+            context['records'] = SomeModel.objects.all()
+            ...
+
+        In the `template.html` file:
+
+            {% for r in records %}
+            ...
+            <span class='crud' data-crud-token='{{r.crud_token_update_afield}}'>update</span>
+            {% endfor %}
+
+            <script>
+            $('.crud').on('click', function(e){
+                var token = $(e.target).data('crud-token')
+                var data = JSON.stringify({token: token, params: {afield: true}})
+                $.post("{% url 'api_somemodel'%}", data).done(function(){...})
+            })
+            </script>
         """
         @csrf_exempt
         def view(request):
