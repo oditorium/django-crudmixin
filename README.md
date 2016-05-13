@@ -69,14 +69,15 @@ posts the token to the API URL
 
     {% for r in records %}
     ...
-    <span class='crud' data-crud-token='{{r.crud_token_update_afield}}'>update</span>
+    <span class='crud' data-token='{{r.crud_token_update_afield}}' data-msg='set afield true'>update</span>
     {% endfor %}
 
     <script>
     $('.crud').on('click', function(e){
         var token = $(e.target).data('crud-token')
         var data = JSON.stringify({token: token, params: {afield: true}})
-        $.post("{% url 'crud_mymodel'%}", data).done(function(){...})
+        var msg = JSON.stringify({token: token, params: {afield: true}, reference:{msg:msg}})
+        $.post("{% url 'crud_mymodel'%}", data).done(function(r){console.log(r.reference.msg)})
     })
     </script>
 
@@ -87,6 +88,7 @@ Contributions welcome. Send us a pull request!
 The idea is to use [semantic versioning](http://semver.org/), even though initially we might make some minor
 API changes without bumping the major version number. Be warned!
 
+- **v2.1** reference parameter in the CRUD API
 - **v2.0** changed the format of the JSON response
 - **v1.2.2** comments
 - **v1.2.1** bugfix in `crud_create` / `crud_update` with foreign key fields

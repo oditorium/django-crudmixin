@@ -4,7 +4,7 @@ CrudMixin - Mixing for Django models to implement CRUD functionality
 Copyright (c) Stefan LOESCH, oditorium 2016. All rights reserved.
 Licensed under the Mozilla Public License, v. 2.0 <https://mozilla.org/MPL/2.0/>
 """
-__version__="2.0"
+__version__="2.1"
 __version_dt__="2016-05-13"
 
 from django.http import JsonResponse
@@ -19,16 +19,15 @@ import inspect
 
 ################################################################################
 ## ERROR / SUCCESS
-def _error(msg, status=None):
+def _error(msg, reference=None, status=None):
     if status == None: status = 404
-    return JsonResponse({'success': False, 'errmsg': msg}, status=status)
+    return JsonResponse({'success': False, 'errmsg': msg, 'data': {}, 'reference': reference}, status=status)
 
-def _success(data, status=None):
+def _success(data, reference=None, status=None):
     if status == None: status = 200
-    return JsonResponse({'data': data, 'success': True}, status=status)
+    return JsonResponse({'data': data, 'success': True, 'reference': reference}, status=status)
     #data['success'] = True
     #return JsonResponse(data, status=status)
-
 
 ################################################################################
 ## EXCEPTIONS
@@ -429,14 +428,51 @@ class CrudMixin():
 
         NOTE:
         - the view function expects POST for all requests, even those that are only reading data
-        - the data has to be transmitted in json, not URL encoded
-        - the response is json; fields are the same as with `crud_token_execute` plus a `success`
-            field (true or false), and an `errmsg` field in case of non success
-    
+
+        - the data has to be transmitted in json, not URL encoded; fields:
+            - `token`: the API token that determines the request
+            - `parameters`: additional parameters
+            - `reference`: frontend reference data, returned unchanged*
+
+        - the response is json; fields
+        - the response is json; fields:
+            - `success`: true or false
+            - `errmsg`: long error message** 
+            - `reference`: the reference data originally submitted*
+            - `data.xxx`: same as with `crud_token_execute`**
+
+        * allows for the JavaScript to more easily interpret the response
+        ** presence depends on the value of `success`    
+
         PARAMETERS:
         - token: the CRUD token that (mostly) determines the request
         - params: the command parameters (dict for create, update, and duplicate tokens; 
             list for read token; nothing for delete token)
+
+
+
+
+
+        - the view function expects POST for all requests, even those that are only reading data
+
+
+
+        - the response is json; fields:
+            - `success`: true or false
+            - `errmsg`: long error message** 
+            - `reference`: the reference data originally submitted*
+            - `data.tag_id`: the ID of the relevant tag**
+            - `data.tag`: the full name of the relevant tag**
+            - `data.short_tag`: the short tag**
+            - `data.item_id`: the ID of the relevant item**
+            - `data.item_has_tag`: true or false**
+
+        * allows for the JavaScript to more easily interpret the response
+        ** presence depends on the value of `success`
+
+
+
+
 
         USAGE
         In the `urls.py` file:
@@ -463,33 +499,40 @@ class CrudMixin():
 
             {% for r in records %}
             ...
-            <span class='crud' data-crud-token='{{r.crud_token_update_afield}}'>update</span>
+            <span class='crud' data-token='{{r.crud_token_update_afield}}' data-msg='set afield true'>update</span>
             {% endfor %}
 
             <script>
             $('.crud').on('click', function(e){
                 var token = $(e.target).data('crud-token')
                 var data = JSON.stringify({token: token, params: {afield: true}})
-                $.post("{% url 'api_somemodel'%}", data).done(function(){...})
+                var msg = JSON.stringify({token: token, params: {afield: true}, reference:{msg:msg}})
+                $.post("{% url 'crud_mymodel'%}", data).done(function(r){console.log(r.reference.msg)})
             })
             </script>
         """
         @csrf_exempt
         def view(request):
             if request.method != "POST": return _error("request must be POST")
+            
             try: data = json.loads(request.body.decode())
             except: return _error('could not json-decode request body [{}]'.format(request.body.decode()))
+
             try: token = data['token']
             except: return _error('missing token')
-            params = data['params'] if 'params' in data else None
+
+            params    = data['params']    if 'params'    in data else None
+            reference = data['reference'] if 'reference' in data else None
+
             try: result = cls.crud_token_execute(token, params)
-            except TokenSignatureError as e: return _error('token signature error [{}]'.format(str(e)))
-            except TokenFormatError as e: return _error('token format error [{}]'.format(str(e)))
-            except TokenPermissionError as e: return _error('token permission error [{}]'.format(str(e)))
-            except ParamsError as e: return _error('parameter error [{}]'.format(str(e)))
-            except DoesNotExistError as e: return _error('item does not exist [{}]'.format(str(e)))
-            except Exception as e: return _error('error executing token [{}::{}]'.format(type(e), str(e)))
-            return _success(result)
+            except TokenSignatureError as e: return _error('token signature error [{}]'.format(str(e)), reference)
+            except TokenFormatError as e: return _error('token format error [{}]'.format(str(e)), reference)
+            except TokenPermissionError as e: return _error('token permission error [{}]'.format(str(e)), reference)
+            except ParamsError as e: return _error('parameter error [{}]'.format(str(e)), reference)
+            except DoesNotExistError as e: return _error('item does not exist [{}]'.format(str(e)), reference)
+            except Exception as e: return _error('error executing token [{}::{}]'.format(type(e), str(e)), reference)
+
+            return _success(result, reference)
     
         return view
                 
