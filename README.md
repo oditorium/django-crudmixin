@@ -87,6 +87,7 @@ Contributions welcome. Send us a pull request!
 The idea is to use [semantic versioning](http://semver.org/), even though initially we might make some minor
 API changes without bumping the major version number. Be warned!
 
+- **v2.0** changed the format of the JSON response
 - **v1.2.2** comments
 - **v1.2.1** bugfix in `crud_create` / `crud_update` with foreign key fields
 - **v1.2** initial version in this repo (added CRUD API code)

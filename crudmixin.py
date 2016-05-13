@@ -4,8 +4,8 @@ CrudMixin - Mixing for Django models to implement CRUD functionality
 Copyright (c) Stefan LOESCH, oditorium 2016. All rights reserved.
 Licensed under the Mozilla Public License, v. 2.0 <https://mozilla.org/MPL/2.0/>
 """
-__version__="1.2.2"
-__version_dt__="2016-05-11"
+__version__="2.0"
+__version_dt__="2016-05-13"
 
 from django.http import JsonResponse
 from django.core.signing import Signer, BadSignature
@@ -25,8 +25,9 @@ def _error(msg, status=None):
 
 def _success(data, status=None):
     if status == None: status = 200
-    data['success'] = True
-    return JsonResponse(data, status=status)
+    return JsonResponse({'data': data, 'success': True}, status=status)
+    #data['success'] = True
+    #return JsonResponse(data, status=status)
 
 
 ################################################################################
