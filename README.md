@@ -88,6 +88,7 @@ Contributions welcome. Send us a pull request!
 The idea is to use [semantic versioning](http://semver.org/), even though initially we might make some minor
 API changes without bumping the major version number. Be warned!
 
+- **v2.2** added logging
 - **v2.1** reference parameter in the CRUD API
 - **v2.0** changed the format of the JSON response
 - **v1.2.2** comments

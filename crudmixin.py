@@ -4,8 +4,8 @@ CrudMixin - Mixing for Django models to implement CRUD functionality
 Copyright (c) Stefan LOESCH, oditorium 2016. All rights reserved.
 Licensed under the Mozilla Public License, v. 2.0 <https://mozilla.org/MPL/2.0/>
 """
-__version__="2.1"
-__version_dt__="2016-05-13"
+__version__="2.2"
+__version_dt__="2016-06-08"
 
 from django.http import JsonResponse
 from django.core.signing import Signer, BadSignature
@@ -15,6 +15,10 @@ import json
 #import copy
 import inspect
     # http://stackoverflow.com/questions/395735/python-how-to-check-whether-a-variable-is-a-class-or-not
+
+from logging import getLogger
+logger = getLogger(__name__)
+#logger.debug("module loaded")
 
 
 ################################################################################
@@ -513,6 +517,7 @@ class CrudMixin():
         """
         @csrf_exempt
         def view(request):
+            logger.debug("API call starting")
             if request.method != "POST": return _error("request must be POST")
             
             try: data = json.loads(request.body.decode())
@@ -523,6 +528,7 @@ class CrudMixin():
 
             params    = data['params']    if 'params'    in data else None
             reference = data['reference'] if 'reference' in data else None
+            logger.info("CRUD API call {} in {}".format(params, cls.__name__))
 
             try: result = cls.crud_token_execute(token, params)
             except TokenSignatureError as e: return _error('token signature error [{}]'.format(str(e)), reference)
@@ -531,7 +537,8 @@ class CrudMixin():
             except ParamsError as e: return _error('parameter error [{}]'.format(str(e)), reference)
             except DoesNotExistError as e: return _error('item does not exist [{}]'.format(str(e)), reference)
             except Exception as e: return _error('error executing token [{}::{}]'.format(type(e), str(e)), reference)
-
+            
+            logger.debug("API call success")
             return _success(result, reference)
     
         return view
